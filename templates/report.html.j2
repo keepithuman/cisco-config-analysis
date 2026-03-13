@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cisco Config Analysis — {{ device_info.hostname }}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; color: #1a1a2e; padding: 24px; }
+  .container { max-width: 1100px; margin: 0 auto; }
+  .header { background: linear-gradient(135deg, #0f3460, #16213e); color: #fff; padding: 28px 32px; border-radius: 12px; margin-bottom: 24px; }
+  .header h1 { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+  .header .subtitle { font-size: 14px; opacity: 0.8; }
+  .device-meta { display: flex; gap: 32px; margin-top: 16px; flex-wrap: wrap; }
+  .device-meta .item { font-size: 13px; }
+  .device-meta .label { opacity: 0.6; text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px; display: block; margin-bottom: 2px; }
+
+  .score-bar { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+  .score-card { flex: 1; min-width: 140px; background: #fff; border-radius: 10px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .score-card .number { font-size: 28px; font-weight: 700; }
+  .score-card .label { font-size: 12px; color: #666; margin-top: 4px; }
+  .score-card.critical .number { color: #e74c3c; }
+  .score-card.warning .number { color: #f39c12; }
+  .score-card.info .number { color: #3498db; }
+  .score-card.good .number { color: #27ae60; }
+
+  .section { background: #fff; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden; }
+  .section-header { padding: 16px 20px; font-size: 15px; font-weight: 600; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+  .section-header .badge { font-size: 11px; padding: 3px 10px; border-radius: 12px; font-weight: 500; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 10px 16px; background: #f8f9fa; color: #555; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  td { padding: 10px 16px; border-top: 1px solid #f0f0f0; vertical-align: top; }
+  tr:hover { background: #fafbfc; }
+
+  .severity { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+  .severity.critical { background: #fde8e8; color: #e74c3c; }
+  .severity.warning { background: #fef3e2; color: #e67e22; }
+  .severity.info { background: #e8f4fd; color: #2980b9; }
+
+  .interface-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; padding: 16px; }
+  .iface-card { border: 1px solid #eee; border-radius: 8px; padding: 12px; }
+  .iface-card.active { border-left: 3px solid #27ae60; }
+  .iface-card.shutdown { border-left: 3px solid #e74c3c; opacity: 0.7; }
+  .iface-name { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+  .iface-detail { font-size: 11px; color: #666; }
+
+  .summary-row { display: flex; gap: 24px; padding: 16px 20px; flex-wrap: wrap; }
+  .summary-item { font-size: 13px; }
+  .summary-item .val { font-weight: 600; }
+
+  .footer { text-align: center; padding: 20px; font-size: 12px; color: #999; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>Configuration Analysis Report</h1>
+    <div class="subtitle">{{ device_info.hostname }} — {{ device_info.host }}</div>
+    <div class="device-meta">
+      <div class="item"><span class="label">Model</span>{{ device_info.model or 'N/A' }}</div>
+      <div class="item"><span class="label">IOS Version</span>{{ device_info.os_version or 'N/A' }}</div>
+      <div class="item"><span class="label">Uptime</span>{{ device_info.uptime or 'N/A' }}</div>
+      <div class="item"><span class="label">Serial</span>{{ device_info.serial or 'N/A' }}</div>
+    </div>
+  </div>
+
+  <!-- Score Cards -->
+  {% set total_critical = interfaces_analysis.summary.get('critical', 0)|default(0) + security_analysis.summary.get('critical', 0)|default(0) + routing_analysis.summary.get('critical', 0)|default(0) + services_analysis.summary.get('critical', 0)|default(0) %}
+  {% set total_warning = interfaces_analysis.summary.get('warning', 0)|default(0) + security_analysis.summary.get('warning', 0)|default(0) + routing_analysis.summary.get('warning', 0)|default(0) + services_analysis.summary.get('warning', 0)|default(0) %}
+  {% set total_info = interfaces_analysis.summary.get('info', 0)|default(0) + security_analysis.summary.get('info', 0)|default(0) + routing_analysis.summary.get('info', 0)|default(0) + services_analysis.summary.get('info', 0)|default(0) %}
+  {% set total_findings = total_critical + total_warning + total_info %}
+
+  <div class="score-bar">
+    <div class="score-card {% if total_critical > 0 %}critical{% else %}good{% endif %}">
+      <div class="number">{{ total_critical }}</div>
+      <div class="label">Critical</div>
+    </div>
+    <div class="score-card warning">
+      <div class="number">{{ total_warning }}</div>
+      <div class="label">Warnings</div>
+    </div>
+    <div class="score-card info">
+      <div class="number">{{ total_info }}</div>
+      <div class="label">Informational</div>
+    </div>
+    <div class="score-card">
+      <div class="number">{{ interfaces_analysis.summary.total }}</div>
+      <div class="label">Interfaces</div>
+    </div>
+    <div class="score-card">
+      <div class="number">{{ routing_analysis.summary.static_route_count }}</div>
+      <div class="label">Static Routes</div>
+    </div>
+  </div>
+
+  <!-- Interfaces Section -->
+  <div class="section">
+    <div class="section-header">
+      Interfaces
+      <span class="badge" style="background:#e8f4fd;color:#2980b9;">{{ interfaces_analysis.summary.active }} active / {{ interfaces_analysis.summary.total }} total</span>
+    </div>
+    <div class="summary-row">
+      <div class="summary-item">With IP: <span class="val">{{ interfaces_analysis.summary.with_ip }}</span></div>
+      <div class="summary-item">Shutdown: <span class="val">{{ interfaces_analysis.summary.shutdown }}</span></div>
+      <div class="summary-item">Missing Description: <span class="val">{{ interfaces_analysis.summary.missing_description }}</span></div>
+    </div>
+    <div class="interface-grid">
+      {% for iface in interfaces_analysis.interfaces %}
+      <div class="iface-card {{ 'shutdown' if iface.shutdown else 'active' }}">
+        <div class="iface-name">{{ iface.name }}</div>
+        {% if iface.ip_address %}<div class="iface-detail">IP: {{ iface.ip_address }}</div>{% endif %}
+        {% if iface.description %}<div class="iface-detail">{{ iface.description }}</div>{% endif %}
+        <div class="iface-detail">{{ 'Shutdown' if iface.shutdown else 'Active' }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Security Findings -->
+  <div class="section">
+    <div class="section-header">
+      Security Analysis
+      <span class="badge" style="background:{% if security_analysis.summary.critical > 0 %}#fde8e8;color:#e74c3c{% else %}#e8fde8;color:#27ae60{% endif %};">{{ security_analysis.summary.critical }} critical</span>
+    </div>
+    <div class="summary-row">
+      <div class="summary-item">ACLs: <span class="val">{{ security_analysis.summary.acl_count }}</span></div>
+      <div class="summary-item">AAA: <span class="val">{{ 'Enabled' if security_analysis.summary.aaa_enabled else 'Disabled' }}</span></div>
+      <div class="summary-item">SSH v2: <span class="val">{{ 'Yes' if security_analysis.summary.ssh_v2 else 'No' }}</span></div>
+    </div>
+    {% if security_analysis.findings %}
+    <table>
+      <thead><tr><th>Severity</th><th>Category</th><th>Issue</th><th>Recommendation</th></tr></thead>
+      <tbody>
+      {% for f in security_analysis.findings %}
+        <tr>
+          <td><span class="severity {{ f.severity }}">{{ f.severity }}</span></td>
+          <td>{{ f.category }}</td>
+          <td>{{ f.issue }}</td>
+          <td>{{ f.recommendation }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+
+  <!-- Routing Findings -->
+  <div class="section">
+    <div class="section-header">
+      Routing Analysis
+      <span class="badge" style="background:#e8f4fd;color:#2980b9;">{{ routing_analysis.protocols | join(', ') or 'Static only' }}</span>
+    </div>
+    <div class="summary-row">
+      <div class="summary-item">Protocols: <span class="val">{{ routing_analysis.protocols | length }}</span></div>
+      <div class="summary-item">Static Routes: <span class="val">{{ routing_analysis.summary.static_route_count }}</span></div>
+      <div class="summary-item">Default Route: <span class="val">{{ 'Yes' if routing_analysis.summary.has_default_route else 'No' }}</span></div>
+    </div>
+    {% if routing_analysis.findings %}
+    <table>
+      <thead><tr><th>Severity</th><th>Protocol</th><th>Issue</th><th>Recommendation</th></tr></thead>
+      <tbody>
+      {% for f in routing_analysis.findings %}
+        <tr>
+          <td><span class="severity {{ f.severity }}">{{ f.severity }}</span></td>
+          <td>{{ f.protocol }}</td>
+          <td>{{ f.issue }}</td>
+          <td>{{ f.recommendation }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+
+  <!-- Services Findings (NTP, Logging, SNMP, DNS) -->
+  <div class="section">
+    <div class="section-header">
+      Network Services Analysis
+      <span class="badge" style="background:#fef3e2;color:#e67e22;">NTP / Logging / SNMP / DNS</span>
+    </div>
+    <div class="summary-row">
+      <div class="summary-item">NTP Servers: <span class="val">{{ services_analysis.summary.ntp_servers }}</span></div>
+      <div class="summary-item">NTP Auth: <span class="val">{{ 'Yes' if services_analysis.summary.ntp_auth else 'No' }}</span></div>
+      <div class="summary-item">Syslog Hosts: <span class="val">{{ services_analysis.summary.syslog_hosts }}</span></div>
+      <div class="summary-item">SNMP: <span class="val">{{ services_analysis.summary.snmp_version }}</span></div>
+      <div class="summary-item">DNS Servers: <span class="val">{{ services_analysis.summary.dns_servers }}</span></div>
+    </div>
+    {% if services_analysis.findings %}
+    <table>
+      <thead><tr><th>Severity</th><th>Category</th><th>Issue</th><th>Recommendation</th></tr></thead>
+      <tbody>
+      {% for f in services_analysis.findings %}
+        <tr>
+          <td><span class="severity {{ f.severity }}">{{ f.severity }}</span></td>
+          <td>{{ f.category }}</td>
+          <td>{{ f.issue }}</td>
+          <td>{{ f.recommendation }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+
+  <div class="footer">
+    Generated by Itential Automation Gateway — Cisco Config Analysis Workflow
+  </div>
+
+</div>
+</body>
+</html>

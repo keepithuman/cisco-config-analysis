@@ -1,0 +1,29 @@
+{
+  "$id": "collect-config",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["host"],
+  "properties": {
+    "host": {
+      "type": "string",
+      "description": "Cisco device IP or hostname"
+    },
+    "username": {
+      "type": "string",
+      "description": "SSH username"
+    },
+    "password": {
+      "type": "string",
+      "description": "SSH password"
+    },
+    "enable_secret": {
+      "type": "string",
+      "description": "Enable secret (optional)"
+    },
+    "timeout": {
+      "type": "integer",
+      "description": "Connection timeout in seconds",
+      "default": 30
+    }
+  }
+}
