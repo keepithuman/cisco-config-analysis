@@ -39,11 +39,12 @@ def main():
     parser.add_argument("--username", default="")
     parser.add_argument("--password", default="")
     parser.add_argument("--enable_secret", default="")
-    parser.add_argument("--timeout", type=int, default=30)
+    parser.add_argument("--timeout", default="30")
     args = parser.parse_args()
 
     username = args.username or os.environ.get("CISCO_USERNAME", "admin")
     password = args.password or os.environ.get("CISCO_PASSWORD", "")
+    timeout = int(args.timeout) if args.timeout else 30
 
     device = {
         "device_type": "cisco_ios",
@@ -51,7 +52,7 @@ def main():
         "username": username,
         "password": password,
         "secret": args.enable_secret,
-        "timeout": args.timeout,
+        "timeout": timeout,
     }
 
     conn = ConnectHandler(**device)
