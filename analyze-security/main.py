@@ -72,7 +72,7 @@ def analyze(sections):
 
     ssh_config = sections.get("ssh", [])
     ssh_version_2 = any("version 2" in line for line in ssh_config)
-    has_ssh_timeout = any("timeout" in line for line in ssh_config)
+    has_ssh_timeout = any("time-out" in line or "timeout" in line for line in ssh_config)
 
     if not ssh_version_2:
         findings.append({
