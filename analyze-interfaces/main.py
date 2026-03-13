@@ -1,6 +1,6 @@
 import json
+import os
 import re
-import sys
 
 
 def analyze(interface_blocks):
@@ -76,8 +76,8 @@ def analyze(interface_blocks):
 
 
 def main():
-    input_data = json.loads(sys.argv[1]) if len(sys.argv) > 1 else json.loads(sys.stdin.read())
-    interface_blocks = input_data.get("sections", {}).get("interfaces", [])
+    sections = json.loads(os.environ.get("sections", "{}"))
+    interface_blocks = sections.get("interfaces", [])
     result = analyze(interface_blocks)
     print(json.dumps(result))
 

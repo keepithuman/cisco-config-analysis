@@ -1,6 +1,6 @@
 import json
+import os
 import re
-import sys
 from netmiko import ConnectHandler
 
 
@@ -33,15 +33,13 @@ def parse_sections(config_text):
 
 
 def main():
-    input_data = json.loads(sys.argv[1]) if len(sys.argv) > 1 else json.loads(sys.stdin.read())
-
     device = {
         "device_type": "cisco_ios",
-        "host": input_data["host"],
-        "username": input_data["username"],
-        "password": input_data["password"],
-        "secret": input_data.get("enable_secret", ""),
-        "timeout": input_data.get("timeout", 30),
+        "host": os.environ.get("host", "10.0.0.1"),
+        "username": os.environ.get("CISCO_USERNAME", "admin"),
+        "password": os.environ.get("CISCO_PASSWORD", ""),
+        "secret": os.environ.get("enable_secret", ""),
+        "timeout": int(os.environ.get("timeout", "30")),
     }
 
     conn = ConnectHandler(**device)
@@ -77,7 +75,7 @@ def main():
     result = {
         "device_info": {
             "hostname": hostname,
-            "host": input_data["host"],
+            "host": device["host"],
             "model": model,
             "os_version": os_version,
             "uptime": uptime,

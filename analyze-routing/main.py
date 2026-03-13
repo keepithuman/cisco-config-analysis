@@ -1,6 +1,6 @@
 import json
+import os
 import re
-import sys
 
 
 def analyze(sections):
@@ -99,8 +99,7 @@ def analyze(sections):
 
 
 def main():
-    input_data = json.loads(sys.argv[1]) if len(sys.argv) > 1 else json.loads(sys.stdin.read())
-    sections = input_data.get("sections", {})
+    sections = json.loads(os.environ.get("sections", "{}"))
     result = analyze(sections)
     print(json.dumps(result))
 
