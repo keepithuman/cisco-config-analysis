@@ -1,12 +1,11 @@
+import argparse
 import json
-import os
 import re
 
 
 def analyze(sections):
     findings = []
 
-    # --- Dynamic Routing Analysis ---
     routing_blocks = sections.get("routing", [])
     protocols_found = []
 
@@ -64,7 +63,6 @@ def analyze(sections):
                 "recommendation": f"Enable log-adjacency-changes for {protocol} troubleshooting",
             })
 
-    # --- Static Routes Analysis ---
     static_routes = sections.get("static_routes", [])
     default_route_found = False
     for route in static_routes:
@@ -99,7 +97,11 @@ def analyze(sections):
 
 
 def main():
-    sections = json.loads(os.environ.get("sections", "{}"))
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--sections", required=True)
+    args = parser.parse_args()
+
+    sections = json.loads(args.sections)
     result = analyze(sections)
     print(json.dumps(result))
 

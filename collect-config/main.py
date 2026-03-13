@@ -1,3 +1,4 @@
+import argparse
 import json
 import os
 import re
@@ -33,13 +34,24 @@ def parse_sections(config_text):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--host", default="10.0.0.1")
+    parser.add_argument("--username", default="")
+    parser.add_argument("--password", default="")
+    parser.add_argument("--enable_secret", default="")
+    parser.add_argument("--timeout", type=int, default=30)
+    args = parser.parse_args()
+
+    username = args.username or os.environ.get("CISCO_USERNAME", "admin")
+    password = args.password or os.environ.get("CISCO_PASSWORD", "")
+
     device = {
         "device_type": "cisco_ios",
-        "host": os.environ.get("host", "10.0.0.1"),
-        "username": os.environ.get("CISCO_USERNAME", "admin"),
-        "password": os.environ.get("CISCO_PASSWORD", ""),
-        "secret": os.environ.get("enable_secret", ""),
-        "timeout": int(os.environ.get("timeout", "30")),
+        "host": args.host,
+        "username": username,
+        "password": password,
+        "secret": args.enable_secret,
+        "timeout": args.timeout,
     }
 
     conn = ConnectHandler(**device)
@@ -51,7 +63,6 @@ def main():
     running_config = conn.send_command("show running-config")
     conn.disconnect()
 
-    # Extract basic device info from show version
     model = ""
     os_version = ""
     uptime = ""
@@ -61,8 +72,6 @@ def main():
             uptime = line.split("uptime is")[-1].strip()
         if re.match(r"^[Cc]isco\s+\S+", line) and ("processor" in line.lower() or "bytes of" in line.lower()):
             model = line.split()[1] if len(line.split()) > 1 else ""
-        if "system image file" in line.lower() or "system returned to rom" in line.lower():
-            pass
         ver_match = re.search(r"Version\s+([\S]+)", line)
         if ver_match:
             os_version = ver_match.group(1).rstrip(",")
@@ -75,7 +84,7 @@ def main():
     result = {
         "device_info": {
             "hostname": hostname,
-            "host": device["host"],
+            "host": args.host,
             "model": model,
             "os_version": os_version,
             "uptime": uptime,

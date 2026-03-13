@@ -1,12 +1,11 @@
+import argparse
 import json
-import os
 import re
 
 
 def analyze(sections):
     findings = []
 
-    # --- ACL Analysis ---
     acls = sections.get("acls", [])
     acl_names = []
     for block in acls:
@@ -17,7 +16,7 @@ def analyze(sections):
             findings.append({
                 "severity": "critical",
                 "category": "ACL",
-                "issue": f"Overly permissive ACL rule found: permit any any",
+                "issue": "Overly permissive ACL rule found: permit any any",
                 "detail": block.splitlines()[0],
                 "recommendation": "Replace with specific permit rules following least-privilege",
             })
@@ -31,7 +30,6 @@ def analyze(sections):
             "recommendation": "Configure ACLs to restrict traffic flow",
         })
 
-    # --- AAA Analysis ---
     aaa_config = sections.get("aaa", [])
     has_aaa = len(aaa_config) > 0
     has_aaa_auth = any("aaa authentication" in line for line in aaa_config)
@@ -72,7 +70,6 @@ def analyze(sections):
                 "recommendation": "Configure 'aaa accounting' for audit trail",
             })
 
-    # --- SSH Analysis ---
     ssh_config = sections.get("ssh", [])
     ssh_version_2 = any("version 2" in line for line in ssh_config)
     has_ssh_timeout = any("timeout" in line for line in ssh_config)
@@ -94,7 +91,6 @@ def analyze(sections):
             "recommendation": "Set 'ip ssh time-out 60' to limit idle sessions",
         })
 
-    # --- Line Analysis ---
     lines_config = sections.get("lines", [])
     for block in lines_config:
         if "line vty" in block:
@@ -116,7 +112,6 @@ def analyze(sections):
                     "recommendation": "Apply an ACL with 'access-class' to restrict management access",
                 })
 
-    # --- Banner Analysis ---
     banners = sections.get("banners", [])
     if not banners:
         findings.append({
@@ -127,7 +122,6 @@ def analyze(sections):
             "recommendation": "Configure a legal notice banner with 'banner login'",
         })
 
-    # Summary
     summary = {
         "acl_count": len(acl_names),
         "aaa_enabled": has_aaa,
@@ -146,7 +140,11 @@ def analyze(sections):
 
 
 def main():
-    sections = json.loads(os.environ.get("sections", "{}"))
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--sections", required=True)
+    args = parser.parse_args()
+
+    sections = json.loads(args.sections)
     result = analyze(sections)
     print(json.dumps(result))
 

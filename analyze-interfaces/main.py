@@ -1,5 +1,5 @@
+import argparse
 import json
-import os
 import re
 
 
@@ -43,7 +43,6 @@ def analyze(interface_blocks):
 
         interfaces.append(iface)
 
-        # Findings
         if not iface["has_description"] and not iface["shutdown"]:
             findings.append({
                 "severity": "warning",
@@ -76,7 +75,11 @@ def analyze(interface_blocks):
 
 
 def main():
-    sections = json.loads(os.environ.get("sections", "{}"))
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--sections", required=True)
+    args = parser.parse_args()
+
+    sections = json.loads(args.sections)
     interface_blocks = sections.get("interfaces", [])
     result = analyze(interface_blocks)
     print(json.dumps(result))

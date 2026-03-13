@@ -1,11 +1,10 @@
+import argparse
 import json
-import os
 
 
 def analyze(sections):
     findings = []
 
-    # --- NTP Analysis ---
     ntp_config = sections.get("ntp", [])
     ntp_servers = [line for line in ntp_config if "ntp server" in line]
     ntp_auth = any("ntp authenticate" in line for line in ntp_config)
@@ -33,11 +32,9 @@ def analyze(sections):
             "recommendation": "Enable NTP authentication to prevent time spoofing",
         })
 
-    # --- Logging Analysis ---
     logging_config = sections.get("logging", [])
     syslog_hosts = [line for line in logging_config if "logging host" in line or "logging server" in line]
     has_buffered = any("logging buffered" in line for line in logging_config)
-    has_timestamps = any("logging timestamps" in line or "service timestamps" in line for line in logging_config)
 
     if not syslog_hosts:
         findings.append({
@@ -55,7 +52,6 @@ def analyze(sections):
             "recommendation": "Configure 'logging buffered <size>' for local log retention",
         })
 
-    # --- SNMP Analysis ---
     snmp_config = sections.get("snmp", [])
     has_snmp = len(snmp_config) > 0
     snmp_v3 = any("snmp-server group" in line or "snmp-server user" in line for line in snmp_config)
@@ -97,10 +93,8 @@ def analyze(sections):
             "recommendation": "Configure SNMPv3 if network monitoring is required",
         })
 
-    # --- DNS Analysis ---
     dns_config = sections.get("dns", [])
     dns_servers = [line for line in dns_config if "name-server" in line]
-    has_domain = any("domain" in line for line in dns_config)
 
     if not dns_servers:
         findings.append({
@@ -129,7 +123,11 @@ def analyze(sections):
 
 
 def main():
-    sections = json.loads(os.environ.get("sections", "{}"))
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--sections", required=True)
+    args = parser.parse_args()
+
+    sections = json.loads(args.sections)
     result = analyze(sections)
     print(json.dumps(result))
 
